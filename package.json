@@ -7,9 +7,9 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "next dev -p 3000",
-    "build": "prisma generate && next build",
+    "build": "prisma generate --schema=prisma/schema.postgres.prisma && next build",
     "start": "node dist/server.js",
-    "prisma:generate": "prisma generate",
+    "prisma:generate": "prisma generate --schema=prisma/schema.postgres.prisma",
     "prisma:push": "prisma db push",
     "prisma:seed": "tsx prisma/seed.ts"
   },

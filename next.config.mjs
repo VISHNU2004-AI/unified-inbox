@@ -2,6 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
+    if (process.env.VERCEL) return [];
+
     return [
       {
         source: '/api/:path*',

@@ -28,6 +28,8 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
+export { app };
+
 declare module 'http' {
   interface IncomingMessage {
     rawBody?: Buffer;
@@ -137,10 +139,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`====================================================`);
-  console.log(`🚀 Unified Inbox Core Server running on port ${PORT}`);
-  console.log(`🔌 WebSocket Server active at ws://localhost:${PORT}/ws`);
-  console.log(`💬 Live Chat Widget available at http://localhost:${PORT}/widget.js`);
-  console.log(`====================================================`);
-});
+if (!process.env.VERCEL) {
+  server.listen(PORT, () => {
+    console.log(`====================================================`);
+    console.log(`🚀 Unified Inbox Core Server running on port ${PORT}`);
+    console.log(`🔌 WebSocket Server active at ws://localhost:${PORT}/ws`);
+    console.log(`💬 Live Chat Widget available at http://localhost:${PORT}/widget.js`);
+    console.log(`====================================================`);
+  });
+}

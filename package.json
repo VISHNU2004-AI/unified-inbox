@@ -7,10 +7,10 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "next dev -p 3000",
-    "build": "prisma generate --schema=prisma/schema.postgres.prisma && next build",
+    "build": "prisma generate --schema=prisma/schema.postgres.prisma && node scripts/prepare-database.mjs && next build",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate --schema=prisma/schema.postgres.prisma",
-    "prisma:push": "prisma db push",
+    "prisma:push": "prisma db push --schema=prisma/schema.postgres.prisma",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

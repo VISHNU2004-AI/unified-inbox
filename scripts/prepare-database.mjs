@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 
 const databaseUrl = process.env.DATABASE_URL || '';
 
-if (!databaseUrl.startsWith('postgres')) {
+if (!databaseUrl.includes('postgres')) {
   console.log('[Database] Skipping PostgreSQL schema push for local development.');
   process.exit(0);
 }

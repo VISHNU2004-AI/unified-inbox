@@ -37,7 +37,8 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: () => v
 // Sign Up
 authRouter.post('/signup', async (req: Request, res: Response) => {
   try {
-    const { email, password, name, businessName } = req.body;
+    const { email, password, name, businessName, workspaceName } = req.body;
+    const requestedWorkspaceName = businessName || workspaceName;
 
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
@@ -62,14 +63,14 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
     });
 
     // Create default workspace for new user
-    const slug = (businessName || `${name}'s Workspace`)
+    const slug = (requestedWorkspaceName || `${name}'s Workspace`)
       .toLowerCase()
       .replace(/[^a-z0-9]/g, '-')
       .replace(/-+/g, '-') + '-' + Math.random().toString(36).substring(2, 6);
 
     const workspace = await prisma.workspace.create({
       data: {
-        name: businessName || `${name}'s Workspace`,
+        name: requestedWorkspaceName || `${name}'s Workspace`,
         slug,
         ownerId: user.id,
         members: {
@@ -80,7 +81,7 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
         },
         businessProfile: {
           create: {
-            businessName: businessName || `${name}'s Business`,
+            businessName: requestedWorkspaceName || `${name}'s Business`,
             description: 'Customer inquiries and support workspace',
             businessHours: 'Mon - Fri: 9:00 AM - 6:00 PM',
             location: 'Main St, Suite 100',

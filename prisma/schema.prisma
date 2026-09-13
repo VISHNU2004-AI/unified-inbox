@@ -1,0 +1,420 @@
+// Prisma Schema for Unified Inbox SaaS
+// Supports SQLite for zero-config local development and PostgreSQL for production
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String            @id @default(uuid())
+  email          String            @unique
+  passwordHash   String
+  name           String
+  role           String            @default("AGENT") // OWNER, ADMIN, AGENT, SUPERADMIN
+  avatarUrl      String?
+  emailVerified  Boolean           @default(false)
+  isSuspended    Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  memberships    WorkspaceMember[]
+  assignments    ConversationAssignment[]
+  internalNotes  InternalNote[]
+  auditLogs      AuditLog[]
+}
+
+model Workspace {
+  id             String            @id @default(uuid())
+  name           String
+  slug           String            @unique
+  logoUrl        String?
+  ownerId        String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  members        WorkspaceMember[]
+  accounts       ConnectedAccount[]
+  customers      Customer[]
+  conversations  Conversation[]
+  messages       Message[]
+  internalNotes  InternalNote[]
+  businessProfile BusinessProfile?
+  documents      BusinessKnowledgeDocument[]
+  knowledgeChunks BusinessKnowledgeChunk[]
+  products       Product[]
+  services       Service[]
+  aiConfig       AIConfiguration?
+  aiLogs         AIMessageLog[]
+  subscriptions  Subscription[]
+  payments       Payment[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+
+  @@index([ownerId])
+}
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        String    @default("AGENT") // OWNER, ADMIN, AGENT
+  joinedAt    DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model ConnectedAccount {
+  id                   String    @id @default(uuid())
+  workspaceId          String
+  platform             String    // WHATSAPP, INSTAGRAM, MESSENGER, LIVECHAT
+  accountName          String
+  accountId            String    // Meta Phone Number ID, IG Account ID, Page ID, Widget ID
+  externalAccountId    String?   // Explicit external ID reference
+  accountUsername      String?   // e.g. @handle or phone number
+  accessTokenEncrypted String?
+  tokenExpiresAt       DateTime?
+  status               String    @default("NOT_CONNECTED") // NOT_CONNECTED, CONNECTING, CONNECTED, REAUTHORIZATION_REQUIRED, CONNECTION_FAILED, DISCONNECTED
+  errorMessage         String?
+  metadata             String?   // JSON configuration
+  lastSyncAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, platform, accountId])
+  @@index([workspaceId])
+  @@index([platform])
+  @@index([accountId])
+}
+
+model Customer {
+  id          String         @id @default(uuid())
+  workspaceId String
+  externalId  String         // e.g. WhatsApp phone number, IG scoped ID, Messenger scoped ID, or Livechat visitor token
+  name        String
+  handle      String?
+  avatarUrl   String?
+  email       String?
+  phone       String?
+  tags        String?        // comma-separated tags or JSON
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@unique([workspaceId, externalId])
+  @@index([workspaceId])
+  @@index([email])
+  @@index([phone])
+}
+
+model Conversation {
+  id                  String             @id @default(uuid())
+  workspaceId         String
+  customerId          String
+  channel             String             // WHATSAPP, INSTAGRAM, MESSENGER, LIVECHAT
+  status              String             @default("OPEN") // OPEN, PENDING, RESOLVED
+  priority            String             @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  unreadCount         Int                @default(0)
+  lastMessageContent  String?
+  lastMessageAt       DateTime           @default(now())
+  assignedUserId      String?
+  
+  // AI Metrics & Human Review Draft
+  needsHumanReview    Boolean            @default(false)
+  pendingDraftReply   String?
+  escalationReason    String?
+  lastSentiment       String?            // POSITIVE, NEUTRAL, NEGATIVE, URGENT
+  lastIntent          String?            // BUSINESS_HOURS, PRODUCT_SPEC, PRICING, FAQ, COMPLAINT, GENERAL
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  workspace           Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customer            Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  messages            Message[]
+  assignments         ConversationAssignment[]
+  internalNotes       InternalNote[]
+  aiLogs              AIMessageLog[]
+
+  @@index([workspaceId])
+  @@index([channel])
+  @@index([status])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id                String       @id @default(uuid())
+  workspaceId       String
+  conversationId    String
+  channel           String       // WHATSAPP, INSTAGRAM, MESSENGER, LIVECHAT
+  externalMessageId String?      // WAMID, IG MID, etc.
+  senderType        String       // CUSTOMER, AGENT, AI_BOT
+  senderName        String
+  senderExternalId  String?
+  content           String
+  messageType       String       @default("TEXT") // TEXT, IMAGE, FILE
+  direction         String       // INBOUND, OUTBOUND
+  status            String       @default("SENT") // SENT, DELIVERED, READ, FAILED
+  isAiGenerated     Boolean      @default(false)
+  aiConfidence      Float?
+  aiIntent          String?
+  rawPayload        String?      // JSON string of webhook event
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  workspace         Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([conversationId])
+  @@index([createdAt])
+  @@index([externalMessageId])
+}
+
+model ConversationAssignment {
+  id             String       @id @default(uuid())
+  conversationId String
+  userId         String
+  assignedAt     DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([userId])
+}
+
+model InternalNote {
+  id             String       @id @default(uuid())
+  workspaceId    String
+  conversationId String
+  authorId       String
+  content        String
+  createdAt      DateTime     @default(now())
+
+  workspace      Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author         User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([conversationId])
+}
+
+model BusinessProfile {
+  id                  String    @id @default(uuid())
+  workspaceId         String    @unique
+  businessName        String
+  description         String?
+  industry            String?
+  location            String?
+  contactEmail        String?
+  contactPhone        String?
+  businessHours       String?   // e.g. Mon-Fri 9:00 AM - 6:00 PM, Sat 10:00 AM - 2:00 PM
+  website             String?
+  socialLinks         String?   // JSON string
+  faqs                String?   // JSON array of { question, answer }
+  supportInstructions String?   // Special guidance for AI when responding
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model BusinessKnowledgeDocument {
+  id          String    @id @default(uuid())
+  workspaceId String
+  title       String
+  sourceType  String    // FORM, FILE, URL, CATALOG
+  rawContent  String
+  fileType    String?   // pdf, docx, txt, html
+  fileUrl     String?
+  status      String    @default("PROCESSED") // PENDING, PROCESSED, FAILED
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chunks      BusinessKnowledgeChunk[]
+
+  @@index([workspaceId])
+}
+
+model BusinessKnowledgeChunk {
+  id          String    @id @default(uuid())
+  workspaceId String
+  documentId  String
+  chunkText   String
+  keywords    String?   // comma-separated tokens for fast keyword BM25 retrieval
+  embedding   String?   // JSON vector array
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  document    BusinessKnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([documentId])
+}
+
+model Product {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  name         String
+  description  String?
+  price        Float
+  category     String?
+  availability Boolean   @default(true)
+  features     String?   // JSON array of feature strings
+  terms        String?
+  imageUrl     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model Service {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  name         String
+  description  String?
+  price        Float
+  duration     String?   // e.g. "45 mins", "1 hour"
+  category     String?
+  availability Boolean   @default(true)
+  features     String?   // JSON array
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model AIConfiguration {
+  id                  String    @id @default(uuid())
+  workspaceId         String    @unique
+  autoReplyEnabled    Boolean   @default(true)
+  humanReviewEnabled  Boolean   @default(false)
+  personality         String    @default("Professional, warm, and helpful")
+  businessTone        String    @default("Friendly yet professional")
+  defaultLanguage     String    @default("auto") // auto, english, hindi, hinglish
+  greetingMessage     String?   @default("Hello! Welcome to our business. How may I assist you today?")
+  fallbackMessage     String    @default("I apologize, but I don't have that information right now. Please wait a moment while our team member assists you.")
+  businessHoursBehavior String  @default("ALWAYS_REPLY") // ALWAYS_REPLY, AFTER_HOURS_ONLY
+  escalationRules     String?   // JSON array of triggers (e.g. keywords, refund, angry)
+  responseLength      String    @default("CONCISE") // CONCISE, DETAILED
+  channelSettings     String?   // JSON string specifying per-channel toggles { WHATSAPP: true, INSTAGRAM: true, ... }
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  workspace           Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model AIMessageLog {
+  id                 String       @id @default(uuid())
+  workspaceId        String
+  conversationId     String
+  incomingText       String
+  suggestedReply     String
+  intent             String?
+  sentiment          String?
+  confidence         Float?
+  decision           String       // AUTO_SENT, HELD_FOR_REVIEW, MANUALLY_OVERRIDDEN
+  detectedLanguage   String?      // en, hi, hinglish
+  latencyMs          Int?
+  rawModelResponse   String?      // JSON string
+  createdAt          DateTime     @default(now())
+
+  workspace          Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation       Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([conversationId])
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  workspaceId          String
+  plan                 String    @default("STARTER") // FREE, STARTER, GROWTH, ENTERPRISE
+  status               String    @default("ACTIVE") // ACTIVE, PAST_DUE, CANCELED
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model Payment {
+  id                   String    @id @default(uuid())
+  workspaceId          String
+  amount               Float
+  currency             String    @default("usd")
+  status               String    @default("SUCCEEDED") // SUCCEEDED, PENDING, FAILED
+  stripePaymentIntentId String?
+  createdAt            DateTime  @default(now())
+
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model Notification {
+  id          String    @id @default(uuid())
+  workspaceId String
+  title       String
+  content     String
+  type        String    // NEW_MESSAGE, AI_ESCALATION, SYSTEM_ALERT, SUBSCRIPTION
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model WebhookEvent {
+  id          String    @id @default(uuid())
+  platform    String    // WHATSAPP, INSTAGRAM, MESSENGER, STRIPE
+  eventType   String?
+  payload     String    // Raw JSON string
+  status      String    @default("PROCESSED") // RECEIVED, PROCESSED, FAILED
+  errorMessage String?
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([platform])
+  @@index([status])
+}
+
+model AuditLog {
+  id          String    @id @default(uuid())
+  workspaceId String
+  userId      String?
+  action      String
+  details     String?   // JSON string
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+}

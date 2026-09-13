@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Acme Co. - Website Live Chat Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; line-height: 1.6; }
+    .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; }
+    .badge { display: inline-block; padding: 6px 14px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 999px; color: #818cf8; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+    h1 { font-size: 48px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 16px; background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    p { font-size: 18px; color: #94a3b8; max-width: 600px; margin-bottom: 32px; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; max-width: 900px; width: 100%; margin-top: 20px; }
+    .card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 16px; padding: 24px; text-align: left; }
+    .card h3 { font-size: 18px; margin-bottom: 8px; color: #f1f5f9; }
+    .card p { font-size: 14px; margin-bottom: 0; }
+    .cta-hint { margin-top: 40px; font-size: 14px; color: #64748b; }
+    .cta-hint span { color: #818cf8; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="badge">Live Chat Widget Testbed</div>
+    <h1>Acme Dental & Wellness Clinic</h1>
+    <p>Experience the Unified Inbox embeddable live chat widget below. Chat in English, Hindi, or Hinglish to see the AI automatically reply based on the clinic's real business knowledge!</p>
+    
+    <div class="cards">
+      <div class="card">
+        <h3>🕒 Business Hours</h3>
+        <p>Mon - Sat: 9:00 AM - 7:00 PM. Emergency on-call support available 24/7.</p>
+      </div>
+      <div class="card">
+        <h3>📍 Location</h3>
+        <p>102 Medical Enclave, Sector 18, Gurugram, Haryana.</p>
+      </div>
+      <div class="card">
+        <h3>🦷 Services & Pricing</h3>
+        <p>Teeth Cleaning (₹1,500), Root Canal (₹4,500), Invisible Aligners consultation (Free).</p>
+      </div>
+    </div>
+
+    <div class="cta-hint">
+      👉 Look at the <span>bottom-right corner</span> of the screen and click the chat icon!
+    </div>
+  </div>
+
+  <!-- Unified Inbox Live Chat Widget Script -->
+  <script 
+    src="/widget.js" 
+    data-workspace-id="ws-acme-default" 
+    data-backend-url="http://localhost:5000">
+  </script>
+</body>
+</html>

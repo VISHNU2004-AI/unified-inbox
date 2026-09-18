@@ -23,6 +23,20 @@ import {
   Phone
 } from 'lucide-react';
 
+const formatAdminTime = (value?: string | null) => {
+  if (!value) return '--:--';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--:--';
+
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(date);
+};
+
 export default function AdminPage() {
   const [stats, setStats] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
@@ -152,7 +166,7 @@ export default function AdminPage() {
                       stats.recentAiLogs.map((log: any) => (
                         <tr key={log.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                           <td style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)' }}>
-                            {new Date(log.createdAt).toLocaleTimeString()}
+                            {formatAdminTime(log.createdAt)}
                           </td>
                           <td style={{ padding: '0.75rem 1rem', maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {log.incomingText}
@@ -399,7 +413,7 @@ export default function AdminPage() {
                 webhooks.map((w, idx) => (
                   <div key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.5rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', color: '#818cf8', marginBottom: '0.25rem' }}>
-                      <span>[{new Date(w.createdAt).toLocaleTimeString()}] [{w.platform}] {w.eventType}</span>
+                      <span>[{formatAdminTime(w.createdAt)}] [{w.platform}] {w.eventType}</span>
                       <span style={{ color: '#10b981' }}>{w.status}</span>
                     </div>
                     <pre style={{ color: '#94a3b8', fontSize: '0.7rem', overflowX: 'auto' }}>

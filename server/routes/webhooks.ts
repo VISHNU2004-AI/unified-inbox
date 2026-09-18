@@ -339,7 +339,6 @@ export async function handleIncomingNormalizedMessage(params: {
       rawPayload: params.rawPayload ? JSON.stringify(params.rawPayload) : undefined,
     },
   });
-        rawPayload: params.rawPayload ? JSON.stringify(params.rawPayload) : undefined,
 
   // 5. Broadcast to Connected Agents via WebSocket
   broadcastToWorkspace(workspaceId, {

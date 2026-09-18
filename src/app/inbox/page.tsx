@@ -75,6 +75,20 @@ interface Conversation {
   notes?: InternalNote[];
 }
 
+const formatInboxTime = (value?: string | null) => {
+  if (!value) return '--:--';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '--:--';
+
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'UTC',
+  }).format(date);
+};
+
 export default function InboxPage() {
   const { currentWorkspace, user } = useAuth();
 
@@ -371,7 +385,7 @@ export default function InboxPage() {
 
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', flexShrink: 0 }}>
                         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          {new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatInboxTime(conv.lastMessageAt)}
                         </span>
                         {getChannelBadge(conv.channel)}
                       </div>
@@ -502,7 +516,7 @@ export default function InboxPage() {
                           <span>{msg.senderName}</span>
                         )}
                         <span>•</span>
-                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>{formatInboxTime(msg.createdAt)}</span>
                       </div>
 
                       {/* Bubble */}

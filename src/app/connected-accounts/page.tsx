@@ -46,6 +46,7 @@ function ConnectedAccountsContent() {
   const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedScript, setCopiedScript] = useState(false);
+  const [scriptOrigin, setScriptOrigin] = useState('http://localhost:3000');
 
   // Modals state
   const [selectedManageAccount, setSelectedManageAccount] = useState<ConnectedAccount | null>(null);
@@ -80,6 +81,12 @@ function ConnectedAccountsContent() {
   useEffect(() => {
     loadAccounts();
   }, [loadAccounts]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setScriptOrigin(window.location.origin);
+    }
+  }, []);
 
   // Connect click handler - initiates official provider OAuth
   const handleConnectProvider = async (platform: 'WHATSAPP' | 'INSTAGRAM' | 'MESSENGER') => {
@@ -144,8 +151,10 @@ function ConnectedAccountsContent() {
   };
 
   const copyWidgetScript = () => {
-    const scriptTag = `<script src="${window.location.origin}/widget.js" data-workspace-id="${currentWorkspace?.id}"></script>`;
-    navigator.clipboard.writeText(scriptTag);
+    const scriptTag = `<script src="${scriptOrigin}/widget.js" data-workspace-id="${currentWorkspace?.id}"></script>`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(scriptTag);
+    }
     setCopiedScript(true);
     setTimeout(() => setCopiedScript(false), 2500);
   };
@@ -1009,7 +1018,7 @@ function ConnectedAccountsContent() {
                       wordBreak: 'break-all',
                     }}
                   >
-                    {`<script src="${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5000'}/widget.js" data-workspace-id="${currentWorkspace?.id}"></script>`}
+                    {`<script src="${scriptOrigin}/widget.js" data-workspace-id="${currentWorkspace?.id}"></script>`}
                   </pre>
                   <button
                     onClick={copyWidgetScript}

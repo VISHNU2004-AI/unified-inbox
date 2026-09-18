@@ -90,10 +90,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.token) {
         setAuthToken(data.token);
         setUser(data.user);
-        const wsList = data.workspaces || [];
+        const wsList = data.workspaces || (data.activeWorkspace ? [data.activeWorkspace] : (data.workspace ? [data.workspace] : []));
         setWorkspaces(wsList);
 
-        const firstWs = wsList[0] || null;
+        const firstWs = data.activeWorkspace || wsList[0] || null;
         setCurrentWorkspace(firstWs);
         if (firstWs) {
           setActiveWorkspaceId(firstWs.id);
@@ -116,9 +116,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.token) {
         setAuthToken(data.token);
         setUser(data.user);
-        const wsList = data.workspaces || [];
+        const wsList = data.workspaces || (data.activeWorkspace ? [data.activeWorkspace] : (data.workspace ? [data.workspace] : []));
         setWorkspaces(wsList);
-        const firstWs = wsList[0] || null;
+        const firstWs = data.activeWorkspace || wsList[0] || null;
         setCurrentWorkspace(firstWs);
         if (firstWs) {
           setActiveWorkspaceId(firstWs.id);

@@ -5,12 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx watch server/index.ts",
+    "dev:server": "npx prisma db push --schema prisma/schema.prisma && tsx watch server/index.ts",
     "dev:client": "next dev -p 3000",
-    "build": "prisma generate --schema=prisma/schema.postgres.prisma && node scripts/prepare-database.mjs && next build",
+    "build": "prisma generate --schema=prisma/schema.prisma && prisma db push --schema=prisma/schema.prisma && next build",
     "start": "node dist/server.js",
-    "prisma:generate": "prisma generate --schema=prisma/schema.postgres.prisma",
-    "prisma:push": "prisma db push --schema=prisma/schema.postgres.prisma",
+    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
+    "prisma:push": "prisma db push --schema=prisma/schema.prisma",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {

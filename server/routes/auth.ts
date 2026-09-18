@@ -105,6 +105,13 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
+    const workspaceSummary = {
+      id: workspace.id,
+      name: workspace.name,
+      slug: workspace.slug,
+      role: 'OWNER',
+    };
+
     res.status(201).json({
       message: 'User created successfully',
       token,
@@ -114,12 +121,8 @@ authRouter.post('/signup', async (req: Request, res: Response) => {
         name: user.name,
         role: user.role,
       },
-      workspace: {
-        id: workspace.id,
-        name: workspace.name,
-        slug: workspace.slug,
-        role: 'OWNER',
-      },
+      workspaces: [workspaceSummary],
+      activeWorkspace: workspaceSummary,
     });
   } catch (error: any) {
     console.error('[Auth] Signup error:', error);

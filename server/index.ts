@@ -5,9 +5,11 @@ import express from 'express';
 import cors from 'cors';
 import { WebSocketServer, WebSocket } from 'ws';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
+import { prisma } from './db.js';
 import { authRouter } from './routes/auth.js';
 import { workspaceRouter } from './routes/workspaces.js';
 import { conversationRouter } from './routes/conversations.js';
@@ -27,6 +29,40 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
+
+async function ensureDemoUsers() {
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount > 0) return;
+
+    const salt = await bcrypt.genSalt(10);
+    const demoPasswordHash = await bcrypt.hash('demo123', salt);
+    const adminPasswordHash = await bcrypt.hash('admin123', salt);
+
+    await prisma.user.createMany({
+      data: [
+        {
+          email: 'sarah@acmedental.com',
+          passwordHash: demoPasswordHash,
+          name: 'Dr. Sarah Mitchell',
+          role: 'OWNER',
+          emailVerified: true,
+        },
+        {
+          email: 'admin@unifiedinbox.com',
+          passwordHash: adminPasswordHash,
+          name: 'Platform Administrator',
+          role: 'SUPERADMIN',
+          emailVerified: true,
+        },
+      ],
+    });
+
+    console.log('[Auth] Demo accounts ensured for local development.');
+  } catch (error) {
+    console.warn('[Auth] Demo account bootstrap skipped:', error instanceof Error ? error.message : error);
+  }
+}
 
 export { app };
 
@@ -140,6 +176,8 @@ app.get('/api/health', (req, res) => {
 });
 
 if (!process.env.VERCEL) {
+  void ensureDemoUsers();
+
   server.listen(PORT, () => {
     console.log(`====================================================`);
     console.log(`🚀 Unified Inbox Core Server running on port ${PORT}`);

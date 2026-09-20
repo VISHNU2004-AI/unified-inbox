@@ -12,7 +12,7 @@ const result = spawnSync(command, [
   'prisma',
   'db',
   'push',
-  '--schema=prisma/schema.postgres.prisma',
+  '--schema=prisma/schema.prisma',
   '--skip-generate',
 ], { stdio: 'inherit' });
 

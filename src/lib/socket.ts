@@ -49,9 +49,9 @@ class SocketManager {
 
     this.setStatus('CONNECTING');
 
-    const host = window.location.hostname || 'localhost';
+    const configuredUrl = process.env.NEXT_PUBLIC_WS_URL;
     const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${protocol}://${host}:5000/ws`;
+    const wsUrl = configuredUrl || `${protocol}://${window.location.hostname || 'localhost'}:${window.location.port === '3000' ? '5000' : window.location.port || '5000'}/ws`;
 
     try {
       this.socket = new WebSocket(wsUrl);

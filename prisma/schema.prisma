@@ -2,7 +2,7 @@
 // Supports SQLite for zero-config local development and PostgreSQL for production
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

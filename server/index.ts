@@ -78,6 +78,14 @@ app.use(cors({
   credentials: true
 }));
 
+// Path normalizer: ensures req.url starts with /api if invoked via serverless rewrite or direct path without /api
+app.use((req, _res, next) => {
+  if (req.url && !req.url.startsWith('/api') && !req.url.startsWith('/widget') && !req.url.startsWith('/_next')) {
+    req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+  }
+  next();
+});
+
 // Body Parsers
 app.use(express.json({
   limit: '15mb',

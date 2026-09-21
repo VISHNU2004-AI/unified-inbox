@@ -54,6 +54,15 @@ function ConnectedAccountsContent() {
   const [activatingWidget, setActivatingWidget] = useState(false);
   const [unconfiguredNotice, setUnconfiguredNotice] = useState<string | null>(null);
 
+  // Sync & Diagnostic state
+  const [syncingIds, setSyncingIds] = useState<string[]>([]);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
+  const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
+  const [diagnosticAccount, setDiagnosticAccount] = useState<ConnectedAccount | null>(null);
+  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
+  const [diagnosticData, setDiagnosticData] = useState<any>(null);
+
   // URL query params for OAuth callbacks
   const oauthError = searchParams?.get('error');
   const oauthStatus = searchParams?.get('status');
@@ -138,6 +147,56 @@ function ConnectedAccountsContent() {
     }
   };
 
+  // Sync single account conversations & messages from Meta Graph API
+  const handleSyncAccount = async (account: ConnectedAccount) => {
+    setSyncingIds((prev) => [...prev, account.id]);
+    try {
+      const res = await apiFetch(`/api/channels/${account.id}/sync`, { method: 'POST' });
+      if (res && res.result) {
+        setSyncNotice(
+          `Synced ${account.accountName}: ${res.result.importedMessages} message(s) and ${res.result.importedConversations} conversation(s) updated.`
+        );
+      } else {
+        setSyncNotice(`Synced ${account.accountName} successfully.`);
+      }
+      await loadAccounts();
+    } catch (err: any) {
+      setSyncNotice(`Sync notice for ${account.accountName}: ${err.message}`);
+    } finally {
+      setSyncingIds((prev) => prev.filter((id) => id !== account.id));
+    }
+  };
+
+  // Sync all connected accounts
+  const handleSyncAll = async () => {
+    setIsSyncingAll(true);
+    try {
+      const res = await apiFetch('/api/channels/sync-all', { method: 'POST' });
+      const totalMsgs = (res?.results || []).reduce((acc: number, r: any) => acc + (r.importedMessages || 0), 0);
+      setSyncNotice(`All channels synchronized: ${totalMsgs} new message(s) imported.`);
+      await loadAccounts();
+    } catch (err: any) {
+      setSyncNotice(`Sync notice: ${err.message}`);
+    } finally {
+      setIsSyncingAll(false);
+    }
+  };
+
+  // Run Meta diagnostics for an account
+  const handleRunDiagnostic = async (account: ConnectedAccount) => {
+    setDiagnosticAccount(account);
+    setShowDiagnosticModal(true);
+    setDiagnosticLoading(true);
+    try {
+      const res = await apiFetch(`/api/channels/${account.id}/diagnostic`);
+      setDiagnosticData(res?.diagnostic || res);
+    } catch (err: any) {
+      setDiagnosticData({ valid: false, error: err.message });
+    } finally {
+      setDiagnosticLoading(false);
+    }
+  };
+
   const handleActivateLiveChat = async () => {
     try {
       setActivatingWidget(true);
@@ -177,9 +236,25 @@ function ConnectedAccountsContent() {
       subtitle="Connect your business messaging accounts to send and receive messages in Unified Inbox"
       actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button onClick={loadAccounts} className="btn btn-secondary btn-sm" style={{ gap: '0.4rem' }}>
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            <span>Sync Status</span>
+          <button
+            onClick={() => {
+              setDiagnosticAccount(null);
+              setShowDiagnosticModal(true);
+            }}
+            className="btn btn-secondary btn-sm"
+            style={{ gap: '0.4rem' }}
+          >
+            <ShieldCheck size={14} color="#818cf8" />
+            <span>Webhook Setup Guide</span>
+          </button>
+          <button
+            onClick={handleSyncAll}
+            disabled={isSyncingAll}
+            className="btn btn-primary btn-sm"
+            style={{ gap: '0.4rem' }}
+          >
+            <RefreshCw size={14} className={isSyncingAll ? 'animate-spin' : ''} />
+            <span>{isSyncingAll ? 'Syncing...' : 'Sync All Channels'}</span>
           </button>
         </div>
       }
@@ -253,7 +328,33 @@ function ConnectedAccountsContent() {
           </div>
         </div>
 
-        {/* Alerts from OAuth Callback */}
+        {/* Alerts from OAuth Callback & Sync */}
+        {syncNotice && (
+          <div
+            style={{
+              padding: '1rem 1.25rem',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(99, 102, 241, 0.12)',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              color: '#818cf8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.75rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <RefreshCw size={18} />
+              <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{syncNotice}</div>
+            </div>
+            <button
+              onClick={() => setSyncNotice(null)}
+              style={{ background: 'none', border: 'none', color: '#818cf8', cursor: 'pointer' }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
         {oauthStatus === 'connected' && (
           <div
             style={{
@@ -437,15 +538,26 @@ function ConnectedAccountsContent() {
 
             <div>
               {whatsappAcc ? (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
-                    onClick={() => setSelectedManageAccount(whatsappAcc)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ flex: 1 }}
-                  >
-                    <Settings size={13} />
-                    <span>Manage</span>
-                  </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => handleRunDiagnostic(whatsappAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ flex: 1, gap: '0.3rem' }}
+                      title="Test Meta Graph API connectivity and view webhook configuration"
+                    >
+                      <ShieldCheck size={13} color="#10b981" />
+                      <span>Diagnostics</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedManageAccount(whatsappAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ flex: 1 }}
+                    >
+                      <Settings size={13} />
+                      <span>Manage</span>
+                    </button>
+                  </div>
                   <button
                     onClick={() => handleDisconnect(whatsappAcc)}
                     className="btn btn-secondary btn-sm"
@@ -566,24 +678,42 @@ function ConnectedAccountsContent() {
 
             <div>
               {instagramAcc ? (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <button
-                    onClick={() => setSelectedManageAccount(instagramAcc)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ flex: 1 }}
+                    onClick={() => handleSyncAccount(instagramAcc)}
+                    disabled={syncingIds.includes(instagramAcc.id)}
+                    className="btn btn-primary btn-sm"
+                    style={{ width: '100%', gap: '0.4rem', background: 'linear-gradient(135deg, #f09433, #dc2743)', borderColor: '#dc2743' }}
                   >
-                    <Settings size={13} />
-                    <span>Manage</span>
+                    <RefreshCw size={13} className={syncingIds.includes(instagramAcc.id) ? 'animate-spin' : ''} />
+                    <span>{syncingIds.includes(instagramAcc.id) ? 'Syncing Messages...' : 'Sync Messages Now'}</span>
                   </button>
-                  <button
-                    onClick={() => handleDisconnect(instagramAcc)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                    title="Disconnect Instagram"
-                  >
-                    <Trash2 size={13} />
-                    <span>Disconnect</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => handleRunDiagnostic(instagramAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ flex: 1, gap: '0.3rem' }}
+                    >
+                      <ShieldCheck size={13} color="#f472b6" />
+                      <span>Diagnostics</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedManageAccount(instagramAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ flex: 1 }}
+                    >
+                      <Settings size={13} />
+                      <span>Manage</span>
+                    </button>
+                    <button
+                      onClick={() => handleDisconnect(instagramAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                      title="Disconnect Instagram"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button
@@ -699,24 +829,42 @@ function ConnectedAccountsContent() {
 
             <div>
               {messengerAcc ? (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   <button
-                    onClick={() => setSelectedManageAccount(messengerAcc)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ flex: 1 }}
+                    onClick={() => handleSyncAccount(messengerAcc)}
+                    disabled={syncingIds.includes(messengerAcc.id)}
+                    className="btn btn-primary btn-sm"
+                    style={{ width: '100%', gap: '0.4rem', backgroundColor: '#0084ff', borderColor: '#0084ff' }}
                   >
-                    <Settings size={13} />
-                    <span>Manage</span>
+                    <RefreshCw size={13} className={syncingIds.includes(messengerAcc.id) ? 'animate-spin' : ''} />
+                    <span>{syncingIds.includes(messengerAcc.id) ? 'Syncing Messages...' : 'Sync Messages Now'}</span>
                   </button>
-                  <button
-                    onClick={() => handleDisconnect(messengerAcc)}
-                    className="btn btn-secondary btn-sm"
-                    style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                    title="Disconnect Messenger"
-                  >
-                    <Trash2 size={13} />
-                    <span>Disconnect</span>
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => handleRunDiagnostic(messengerAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ flex: 1, gap: '0.3rem' }}
+                    >
+                      <ShieldCheck size={13} color="#60a5fa" />
+                      <span>Diagnostics</span>
+                    </button>
+                    <button
+                      onClick={() => setSelectedManageAccount(messengerAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ flex: 1 }}
+                    >
+                      <Settings size={13} />
+                      <span>Manage</span>
+                    </button>
+                    <button
+                      onClick={() => handleDisconnect(messengerAcc)}
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                      title="Disconnect Messenger"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <button
@@ -941,6 +1089,32 @@ function ConnectedAccountsContent() {
                 </div>
               </div>
 
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <button
+                  onClick={() => {
+                    handleSyncAccount(selectedManageAccount);
+                  }}
+                  disabled={syncingIds.includes(selectedManageAccount.id)}
+                  className="btn btn-primary"
+                  style={{ width: '100%', gap: '0.4rem' }}
+                >
+                  <RefreshCw size={14} className={syncingIds.includes(selectedManageAccount.id) ? 'animate-spin' : ''} />
+                  <span>{syncingIds.includes(selectedManageAccount.id) ? 'Syncing Messages...' : 'Sync Messages Now'}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    const acc = selectedManageAccount;
+                    setSelectedManageAccount(null);
+                    handleRunDiagnostic(acc);
+                  }}
+                  className="btn btn-secondary"
+                  style={{ width: '100%', gap: '0.4rem' }}
+                >
+                  <ShieldCheck size={14} color="#818cf8" />
+                  <span>Test Connection & Webhook Setup</span>
+                </button>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem' }}>
                 <button
                   onClick={() => handleDisconnect(selectedManageAccount)}
@@ -952,9 +1126,120 @@ function ConnectedAccountsContent() {
                 </button>
                 <button
                   onClick={() => setSelectedManageAccount(null)}
+                  className="btn btn-secondary"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* WEBHOOK SETUP & DIAGNOSTICS MODAL                                         */}
+        {/* ========================================================================= */}
+        {showDiagnosticModal && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1.5rem',
+              zIndex: 110,
+            }}
+          >
+            <div className="glass-panel" style={{ maxWidth: '640px', width: '100%', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldCheck size={20} color="#10b981" />
+                    <span>Meta Webhook Setup & Connectivity</span>
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                    {diagnosticAccount ? `Diagnostics for ${diagnosticAccount.accountName} (${diagnosticAccount.platform})` : 'Universal Webhook Configuration'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDiagnosticModal(false);
+                    setDiagnosticData(null);
+                  }}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem' }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Webhook Configuration Section */}
+              <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  To ensure real-time messages reach Unified Inbox immediately, configure these values in your <strong>Meta App Dashboard &rarr; Webhooks</strong>:
+                </div>
+
+                <div style={{ padding: '0.85rem 1rem', borderRadius: '8px', backgroundColor: 'rgba(0, 0, 0, 0.35)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.35rem' }}>
+                    Callback URL (WhatsApp, Messenger & Instagram):
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.825rem', color: '#38bdf8', wordBreak: 'break-all' }}>
+                    https://unified-inbox-azure.vercel.app/api/webhooks/meta
+                  </div>
+                </div>
+
+                <div style={{ padding: '0.85rem 1rem', borderRadius: '8px', backgroundColor: 'rgba(0, 0, 0, 0.35)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.35rem' }}>
+                    Verify Token:
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.825rem', color: '#34d399' }}>
+                    unified_inbox_meta_verify_token_secure
+                  </div>
+                </div>
+
+                <div style={{ padding: '0.85rem 1rem', borderRadius: '8px', backgroundColor: 'rgba(0, 0, 0, 0.35)', border: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, marginBottom: '0.35rem' }}>
+                    Required Webhook Subscribed Fields:
+                  </div>
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.825rem', color: '#fbbf24' }}>
+                    messages, messaging_postbacks
+                  </div>
+                </div>
+              </div>
+
+              {/* Diagnostic Test Result */}
+              {diagnosticLoading ? (
+                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span>Querying Meta Graph API diagnostics...</span>
+                </div>
+              ) : diagnosticData ? (
+                <div style={{ padding: '1rem', borderRadius: '8px', backgroundColor: diagnosticData.valid ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', border: `1px solid ${diagnosticData.valid ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`, marginBottom: '1.5rem' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: diagnosticData.valid ? '#34d399' : '#f87171', display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    {diagnosticData.valid ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                    <span>{diagnosticData.valid ? 'Meta Connection Valid & Verified' : 'Connection Issue Detected'}</span>
+                  </div>
+                  {diagnosticData.error && (
+                    <div style={{ fontSize: '0.8rem', color: '#f87171' }}>{diagnosticData.error}</div>
+                  )}
+                  {diagnosticData.accountDetails && (
+                    <div style={{ fontSize: '0.775rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+                      Graph API me response: {diagnosticData.accountDetails.name || diagnosticData.accountDetails.id}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  onClick={() => {
+                    setShowDiagnosticModal(false);
+                    setDiagnosticData(null);
+                  }}
                   className="btn btn-primary"
                 >
-                  Done
+                  Close
                 </button>
               </div>
             </div>

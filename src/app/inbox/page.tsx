@@ -161,8 +161,10 @@ export default function InboxPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [activeConversation?.messages]);
 
-  // Real-time WebSocket Event Listener
-  useWebSocket((event) => {
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  // Real-time WebSocket Event Listener & Status
+  const { status: wsStatus } = useWebSocket((event) => {
     if (!event) return;
 
     if (event.type === 'NEW_MESSAGE' || event.type === 'AI_DRAFT_READY' || event.type === 'CONVERSATION_UPDATED') {
@@ -172,6 +174,37 @@ export default function InboxPage() {
       }
     }
   });
+
+  // Polling fallback: Ensure conversations update even on serverless deployments where WebSockets cannot persist
+  useEffect(() => {
+    if (!currentWorkspace) return;
+
+    const interval = setInterval(() => {
+      fetchConversations();
+      if (selectedConvId) {
+        fetchActiveConversation(selectedConvId);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [currentWorkspace, selectedConvId, fetchConversations, fetchActiveConversation]);
+
+  // Sync Messages from all connected social media accounts via Meta Graph API
+  const handleSyncChannels = async () => {
+    setIsSyncing(true);
+    try {
+      await apiFetch('/api/channels/sync-all', { method: 'POST' });
+      await fetchConversations();
+      if (selectedConvId) {
+        await fetchActiveConversation(selectedConvId);
+      }
+    } catch (err) {
+      console.warn('[Inbox] Sync channels error:', err);
+      await fetchConversations();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Handle Send Manual Reply or Internal Note
   const handleSend = async () => {
@@ -260,7 +293,49 @@ export default function InboxPage() {
   };
 
   return (
-    <AppLayout title="Unified Multi-Channel Inbox" subtitle="Real-time synchronized inquiries across WhatsApp, Instagram, Messenger & Live Chat">
+    <AppLayout
+      title="Unified Multi-Channel Inbox"
+      subtitle="Real-time synchronized inquiries across WhatsApp, Instagram, Messenger & Live Chat"
+      actions={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontSize: '0.75rem',
+              color: wsStatus === 'CONNECTED' ? '#34d399' : '#818cf8',
+              backgroundColor: wsStatus === 'CONNECTED' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+              border: `1px solid ${wsStatus === 'CONNECTED' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`,
+              padding: '0.25rem 0.65rem',
+              borderRadius: '15px',
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: wsStatus === 'CONNECTED' ? '#10b981' : '#818cf8',
+                boxShadow: wsStatus === 'CONNECTED' ? '0 0 6px #10b981' : '0 0 6px #818cf8',
+              }}
+            />
+            <span>{wsStatus === 'CONNECTED' ? 'Live WebSocket' : 'Live Polling'}</span>
+          </div>
+
+          <button
+            onClick={handleSyncChannels}
+            disabled={isSyncing}
+            className="btn btn-secondary btn-sm"
+            style={{ gap: '0.4rem' }}
+            title="Fetch latest messages from Meta Graph API for all channels"
+          >
+            <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+            <span>{isSyncing ? 'Syncing...' : 'Sync Messages'}</span>
+          </button>
+        </div>
+      }
+    >
       <div style={{
         display: 'flex',
         height: 'calc(100vh - 112px)',

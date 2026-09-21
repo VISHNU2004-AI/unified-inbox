@@ -3,6 +3,7 @@ import { prisma } from '../db.js';
 import { authenticateToken, AuthRequest } from './auth.js';
 import { verifyWorkspaceAccess } from './workspaces.js';
 import { decryptToken, encryptToken } from '../lib/crypto.js';
+import { syncMetaAccountConversations, diagnoseMetaAccount } from '../lib/meta-sync.js';
 
 export const channelRouter = Router();
 
@@ -243,7 +244,7 @@ channelRouter.get('/meta/callback', async (req: Request, res: Response) => {
         for (const page of pagesRes.data) {
           if (platform === 'MESSENGER') {
             // Connect Facebook Page
-            await prisma.connectedAccount.upsert({
+            const savedMessengerAccount = await prisma.connectedAccount.upsert({
               where: {
                 workspaceId_platform_accountId: {
                   workspaceId,
@@ -276,12 +277,13 @@ channelRouter.get('/meta/callback', async (req: Request, res: Response) => {
             });
             connectedCount++;
             primaryConnectedName = page.name;
+            void syncMetaAccountConversations(savedMessengerAccount);
 
           }
 
           if (platform === 'INSTAGRAM' && page.instagram_business_account) {
             const ig = page.instagram_business_account;
-            await prisma.connectedAccount.upsert({
+            const savedIgAccount = await prisma.connectedAccount.upsert({
               where: {
                 workspaceId_platform_accountId: {
                   workspaceId,
@@ -314,6 +316,7 @@ channelRouter.get('/meta/callback', async (req: Request, res: Response) => {
             });
             connectedCount++;
             primaryConnectedName = `@${ig.username}`;
+            void syncMetaAccountConversations(savedIgAccount);
 
             try {
               await subscribeMetaResource(ig.id, page.access_token, 'messages,messaging_postbacks');
@@ -341,7 +344,7 @@ channelRouter.get('/meta/callback', async (req: Request, res: Response) => {
         if (wabaRes.whatsapp_business_accounts?.data) {
           for (const waba of wabaRes.whatsapp_business_accounts.data) {
             for (const phone of waba.phone_numbers?.data || []) {
-              await prisma.connectedAccount.upsert({
+              const savedWabaAccount = await prisma.connectedAccount.upsert({
                 where: {
                   workspaceId_platform_accountId: {
                     workspaceId,
@@ -374,6 +377,7 @@ channelRouter.get('/meta/callback', async (req: Request, res: Response) => {
               });
               connectedCount++;
               primaryConnectedName = phone.display_phone_number || phone.verified_name || 'WhatsApp Business';
+              void syncMetaAccountConversations(savedWabaAccount);
             }
 
             try {
@@ -516,3 +520,89 @@ channelRouter.delete('/:id', authenticateToken, verifyWorkspaceAccess, async (re
     res.status(500).json({ error: 'Failed to disconnect account' });
   }
 });
+
+// -----------------------------------------------------------------------------
+// 6. Manual & Auto Sync Endpoints (Meta Graph API Sync)
+// -----------------------------------------------------------------------------
+
+// Sync all connected accounts for the current workspace
+channelRouter.post('/sync-all', authenticateToken, verifyWorkspaceAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const workspaceId = (req as any).workspaceId;
+    const accounts = await prisma.connectedAccount.findMany({
+      where: { workspaceId, status: 'CONNECTED', platform: { in: ['WHATSAPP', 'INSTAGRAM', 'MESSENGER'] } },
+    });
+
+    const results = [];
+    for (const acc of accounts) {
+      const syncResult = await syncMetaAccountConversations(acc);
+      results.push(syncResult);
+    }
+
+    res.json({
+      success: true,
+      results,
+      message: `Synchronized ${results.length} connected channels`,
+    });
+  } catch (error: any) {
+    console.error('[Channels] Sync all error:', error);
+    res.status(500).json({ error: 'Failed to sync connected accounts' });
+  }
+});
+
+// Sync a specific connected account
+channelRouter.post('/:id/sync', authenticateToken, verifyWorkspaceAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const workspaceId = (req as any).workspaceId;
+    const { id } = req.params;
+
+    const account = await prisma.connectedAccount.findFirst({
+      where: { id, workspaceId },
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: 'Connected account not found' });
+    }
+
+    const syncResult = await syncMetaAccountConversations(account);
+    const updated = await prisma.connectedAccount.findUnique({ where: { id } });
+
+    res.json({
+      success: syncResult.success,
+      result: syncResult,
+      account: updated ? sanitizeAccount(updated) : null,
+    });
+  } catch (error: any) {
+    console.error('[Channels] Sync account error:', error);
+    res.status(500).json({ error: 'Failed to sync account messages' });
+  }
+});
+
+// Diagnose connectivity and credentials for an account
+channelRouter.get('/:id/diagnostic', authenticateToken, verifyWorkspaceAccess, async (req: AuthRequest, res: Response) => {
+  try {
+    const workspaceId = (req as any).workspaceId;
+    const { id } = req.params;
+
+    const account = await prisma.connectedAccount.findFirst({
+      where: { id, workspaceId },
+    });
+
+    if (!account) {
+      return res.status(404).json({ error: 'Connected account not found' });
+    }
+
+    const diagnostic = await diagnoseMetaAccount(account);
+    res.json({
+      success: true,
+      platform: account.platform,
+      accountName: account.accountName,
+      status: account.status,
+      diagnostic,
+    });
+  } catch (error: any) {
+    console.error('[Channels] Diagnostic error:', error);
+    res.status(500).json({ error: 'Failed to run channel diagnostic' });
+  }
+});
+

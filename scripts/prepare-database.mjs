@@ -1,6 +1,15 @@
 import { spawnSync } from 'node:child_process';
 
-const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL || '';
+const databaseUrl =
+  process.env.DATABASE_URL ||
+  process.env.DATABASE_URL_UNPOOLED ||
+  process.env.DATABASE_DATABASE_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL ||
+  '';
+
+process.env.DATABASE_URL = databaseUrl;
 
 if (!databaseUrl.includes('postgres')) {
   console.log('[Database] Skipping PostgreSQL schema push for local development.');

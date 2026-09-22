@@ -5,7 +5,9 @@ if (!process.env.DATABASE_URL) {
     process.env.POSTGRES_PRISMA_URL ||
     process.env.POSTGRES_URL ||
     process.env.DATABASE_DATABASE_URL ||
-    process.env.DATABASE_URL_UNPOOLED;
+    process.env.DATABASE_URL_UNPOOLED ||
+    process.env.DATABASE__POSTGRES_PRISMA_URL ||
+    process.env.DATABASE__POSTGRES_URL;
 }
 
 declare global {

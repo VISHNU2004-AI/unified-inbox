@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { prisma } from '../db.js';
-import { authenticateToken, AuthRequest } from './auth.js';
-import { verifyWorkspaceAccess } from './workspaces.js';
-import { decryptToken, encryptToken } from '../lib/crypto.js';
-import { syncMetaAccountConversations, diagnoseMetaAccount } from '../lib/meta-sync.js';
+import { prisma } from '../db';
+import { authenticateToken, AuthRequest } from './auth';
+import { verifyWorkspaceAccess } from './workspaces';
+import { decryptToken, encryptToken } from '../lib/crypto';
+import { syncMetaAccountConversations, diagnoseMetaAccount } from '../lib/meta-sync';
 
 export const channelRouter = Router();
 

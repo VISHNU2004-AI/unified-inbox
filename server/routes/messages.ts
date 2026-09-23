@@ -1,9 +1,9 @@
 import { Router, Response } from 'express';
-import { prisma } from '../db.js';
-import { authenticateToken, AuthRequest } from './auth.js';
-import { verifyWorkspaceAccess } from './workspaces.js';
-import { broadcastToWorkspace } from '../index.js';
-import { dispatchOutboundToPlatform } from './webhooks.js';
+import { prisma } from '../db';
+import { authenticateToken, AuthRequest } from './auth';
+import { verifyWorkspaceAccess } from './workspaces';
+import { broadcastToWorkspace } from '../index';
+import { dispatchOutboundToPlatform } from './webhooks';
 
 export const messageRouter = Router();
 

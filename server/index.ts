@@ -9,19 +9,19 @@ import bcrypt from 'bcryptjs';
 
 dotenv.config();
 
-import { prisma } from './db.js';
-import { authRouter } from './routes/auth.js';
-import { workspaceRouter } from './routes/workspaces.js';
-import { conversationRouter } from './routes/conversations.js';
-import { messageRouter } from './routes/messages.js';
-import { channelRouter } from './routes/channels.js';
-import { webhookRouter } from './routes/webhooks.js';
-import { simulatorRouter } from './routes/simulator.js';
-import { knowledgeRouter } from './routes/knowledge.js';
-import { aiRouter } from './routes/ai.js';
-import { liveChatRouter } from './routes/livechat.js';
-import { subscriptionRouter } from './routes/subscriptions.js';
-import { adminRouter } from './routes/admin.js';
+import { prisma } from './db';
+import { authRouter } from './routes/auth';
+import { workspaceRouter } from './routes/workspaces';
+import { conversationRouter } from './routes/conversations';
+import { messageRouter } from './routes/messages';
+import { channelRouter } from './routes/channels';
+import { webhookRouter } from './routes/webhooks';
+import { simulatorRouter } from './routes/simulator';
+import { knowledgeRouter } from './routes/knowledge';
+import { aiRouter } from './routes/ai';
+import { liveChatRouter } from './routes/livechat';
+import { subscriptionRouter } from './routes/subscriptions';
+import { adminRouter } from './routes/admin';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

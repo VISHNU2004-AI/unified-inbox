@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { prisma } from '../db.js';
-import { handleIncomingNormalizedMessage } from './webhooks.js';
+import { prisma } from '../db';
+import { handleIncomingNormalizedMessage } from './webhooks';
 
 export const liveChatRouter = Router();
 

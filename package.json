@@ -7,13 +7,13 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "next dev -p 3000",
-    "build": "prisma generate --schema=prisma/schema.prisma && next build",
-    "vercel-build": "prisma generate --schema=prisma/schema.prisma && next build",
+    "build": "prisma generate && next build",
+    "vercel-build": "prisma generate && next build",
     "start": "next start",
-    "prisma:generate": "prisma generate --schema=prisma/schema.prisma",
-    "prisma:push": "prisma db push --schema=prisma/schema.prisma",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
     "prisma:seed": "tsx prisma/seed.ts",
-    "postinstall": "prisma generate --schema=prisma/schema.prisma"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

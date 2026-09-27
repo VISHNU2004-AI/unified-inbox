@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { prisma } from '../db.js';
-import { authenticateToken, AuthRequest } from './auth';
+import { authenticateToken, AuthRequest } from './auth.js';
 
 export const workspaceRouter = Router();
 

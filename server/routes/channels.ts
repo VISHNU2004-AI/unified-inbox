@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../db.js';
-import { authenticateToken, AuthRequest } from './auth';
+import { authenticateToken, AuthRequest } from './auth.js';
 import { verifyWorkspaceAccess } from './workspaces';
 import { decryptToken, encryptToken } from '../lib/crypto';
 import { syncMetaAccountConversations, diagnoseMetaAccount } from '../lib/meta-sync';

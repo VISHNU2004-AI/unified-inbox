@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { handleIncomingNormalizedMessage } from './webhooks';
-import { prisma } from '../db.js';
+import { prisma } from '../db';
 
 export const simulatorRouter = Router();
 

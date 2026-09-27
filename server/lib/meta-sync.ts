@@ -1,6 +1,6 @@
-import { prisma } from '../db';
-import { decryptToken } from './crypto';
-import { broadcastToWorkspace } from '../index';
+import { prisma } from '../db.js';
+import { decryptToken } from './crypto.js';
+import { broadcastToWorkspace } from '../index.js';
 
 export interface SyncResult {
   success: boolean;

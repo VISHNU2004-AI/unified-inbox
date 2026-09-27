@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { prisma } from '../db';
+import { prisma } from '../db.js';
 import { MultilingualAIEngine } from '../ai/engine';
 import { broadcastToWorkspace } from '../index';
 import { decryptToken } from '../lib/crypto';

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { prisma } from '../db';
+import { prisma } from '../db.js';
 import { authenticateToken, AuthRequest } from './auth';
 import { verifyWorkspaceAccess } from './workspaces';
 
